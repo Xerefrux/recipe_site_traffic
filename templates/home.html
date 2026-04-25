@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Traffic Predictor — Tasty Bytes</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8f4f0 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+            color: #2d3436;
+        }
+
+        .container { max-width: 660px; margin: 0 auto; }
+
+        /* ── Header ── */
+        .header { text-align: center; margin-bottom: 36px; }
+        .header .brand {
+            font-size: 12px; font-weight: 700; letter-spacing: 2px;
+            text-transform: uppercase; color: #27ae60; margin-bottom: 10px;
+        }
+        .header h1 { font-size: 30px; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; }
+        .header p  { font-size: 14px; color: #636e72; line-height: 1.6; }
+
+        /* ── Card ── */
+        .card {
+            background: #fff; border-radius: 16px; padding: 36px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+        }
+
+        .section-title {
+            font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+            text-transform: uppercase; color: #27ae60;
+            margin-bottom: 18px; padding-bottom: 8px;
+            border-bottom: 2px solid #e8f5e9;
+        }
+
+        /* ── Form ── */
+        .form-grid {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 18px; margin-bottom: 24px;
+        }
+        .form-group { display: flex; flex-direction: column; }
+
+        label { font-size: 13px; font-weight: 600; color: #4a4a6a; margin-bottom: 6px; }
+        .hint { font-weight: 400; color: #b2bec3; font-size: 12px; }
+
+        input[type="number"], select {
+            width: 100%; padding: 11px 14px;
+            border: 1.5px solid #dfe6e9; border-radius: 8px;
+            font-size: 14px; color: #2d3436; background: #f8f9fa;
+            transition: border-color 0.2s, box-shadow 0.2s; outline: none;
+        }
+        input[type="number"]:focus, select:focus {
+            border-color: #27ae60;
+            box-shadow: 0 0 0 3px rgba(39,174,96,0.12);
+            background: #fff;
+        }
+
+        .divider { height: 1px; background: #f0f0f0; margin: 24px 0; }
+
+        /* ── Button ── */
+        .btn-predict {
+            width: 100%; padding: 14px;
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white; font-size: 15px; font-weight: 700;
+            border: none; border-radius: 10px; cursor: pointer;
+            letter-spacing: 0.5px;
+            transition: transform 0.1s, box-shadow 0.2s;
+        }
+        .btn-predict:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(39,174,96,0.35);
+        }
+        .btn-predict:active { transform: translateY(0); }
+
+        /* ── Result ── */
+        .result-box {
+            margin-top: 28px; padding: 24px;
+            border-radius: 12px; text-align: center;
+        }
+        .result-high {
+            background: linear-gradient(135deg, #e8f8f0, #d5f5e3);
+            border: 1.5px solid #27ae60;
+        }
+        .result-low {
+            background: linear-gradient(135deg, #fef9e7, #fdebd0);
+            border: 1.5px solid #f39c12;
+        }
+        .result-label { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+        .result-high .result-label { color: #1e8449; }
+        .result-low  .result-label { color: #b7770d; }
+        .result-confidence { font-size: 14px; color: #636e72; }
+        .result-confidence strong {
+            font-size: 28px; display: block; margin: 4px 0; color: #2d3436;
+        }
+
+        /* ── Error ── */
+        .error-box {
+            margin-top: 24px; padding: 16px 20px;
+            background: #fff5f5; border: 1.5px solid #e74c3c;
+            border-radius: 10px; color: #c0392b; font-size: 14px;
+        }
+
+        .footnote {
+            margin-top: 20px; font-size: 12px;
+            color: #b2bec3; text-align: center; line-height: 1.6;
+        }
+
+        @media (max-width: 480px) {
+            .form-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <div class="header">
+        <div class="brand">Tasty Bytes · Data Science</div>
+        <h1>Recipe Traffic Predictor</h1>
+        <p>Enter a recipe's nutritional profile and category to predict whether it
+           will drive <strong>high traffic</strong> to the homepage.</p>
+    </div>
+
+    <div class="card">
+
+        <div class="section-title">Nutritional Information (per serving)</div>
+
+        <form action="{{ url_for('predict_datapoint') }}" method="post">
+            <div class="form-grid">
+
+                <div class="form-group">
+                    <label>Calories <span class="hint">(kcal)</span></label>
+                    <input type="number" name="calories" step="0.01" min="0"
+                           placeholder="e.g. 350.5"
+                           value="{{ submitted.calories if submitted else '' }}"
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label>Carbohydrate <span class="hint">(g)</span></label>
+                    <input type="number" name="carbohydrate" step="0.01" min="0"
+                           placeholder="e.g. 42.0"
+                           value="{{ submitted.carbohydrate if submitted else '' }}"
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label>Sugar <span class="hint">(g)</span></label>
+                    <input type="number" name="sugar" step="0.01" min="0"
+                           placeholder="e.g. 5.2"
+                           value="{{ submitted.sugar if submitted else '' }}"
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label>Protein <span class="hint">(g)</span></label>
+                    <input type="number" name="protein" step="0.01" min="0"
+                           placeholder="e.g. 18.0"
+                           value="{{ submitted.protein if submitted else '' }}"
+                           required>
+                </div>
+
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="section-title">Recipe Details</div>
+            <div class="form-grid">
+
+                <div class="form-group">
+                    <label>Category</label>
+                    <select name="category" required>
+                        <option value="" disabled
+                            {% if not submitted %}selected{% endif %}>
+                            Select a category
+                        </option>
+                        {% for cat in categories %}
+                        <option value="{{ cat }}"
+                            {% if submitted and submitted.category == cat %}selected{% endif %}>
+                            {{ cat }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Servings</label>
+                    <input type="number" name="servings" min="1" max="12" step="1"
+                           placeholder="e.g. 4"
+                           value="{{ submitted.servings if submitted else '' }}"
+                           required>
+                </div>
+
+            </div>
+
+            <div class="divider"></div>
+
+            <button type="submit" class="btn-predict">Predict Traffic →</button>
+        </form>
+
+        <!-- Prediction result block -->
+        {% if results %}
+        <div class="result-box {{ 'result-high' if results == 'High Traffic' else 'result-low' }}">
+            <div class="result-label">
+                {{ '🚀 ' + results if results == 'High Traffic' else '📉 ' + results }}
+            </div>
+            <div class="result-confidence">
+                Model confidence (High Traffic probability):
+                <strong>{{ confidence }}%</strong>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Error block -->
+        {% if error %}
+        <div class="error-box">⚠ {{ error }}</div>
+        {% endif %}
+
+        <p class="footnote">
+            Predictions made by a classifier trained on 947 Tasty Bytes recipes.
+            Business target: ≥ 80% precision on the High Traffic class.
+        </p>
+
+    </div>
+</div>
+</body>
+</html>
