@@ -16,11 +16,6 @@ from src.components.model_trainer import ModelTrainerConfig
 
 @dataclass
 class DataIngestionConfig:
-    """
-    Centralises every file-path decision for Stage 1.
-    Using os.path.join() throughout (rather than hardcoded slashes) ensures
-    the project runs on both Windows (development) and Linux (Render/AWS).
-    """
     train_data_path: str = os.path.join("artifacts", "train.csv")
     test_data_path: str = os.path.join("artifacts", "test.csv")
     raw_data_path: str = os.path.join("artifacts", "data.csv")
@@ -31,23 +26,6 @@ class DataIngestion:
         self.ingestion_config = DataIngestionConfig()
 
     def _clean_raw_data(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Applies all documented data cleaning decisions to the raw dataframe.
-        Keeping this in its own method makes the logic auditable independently
-        of the surrounding file I/O.
-
-        DECISIONS DOCUMENTED:
-        1. Drop 'recipe' — it is a unique identifier, not a predictive feature.
-        2. Merge 'Chicken Breast' → 'Chicken' — the data dictionary specifies
-           exactly 10 categories; 'Chicken Breast' is an undocumented 11th that
-           clearly belongs under 'Chicken'.
-        3. Extract leading integer from servings strings like '4 as a snack'
-           — the snack context is already captured by the category column.
-        4. Encode target: 'High' → 1, anything else (NaN, blank) → 0.
-        5. Leave the 52 rows with all-NaN nutrition values as NaN — the
-           SimpleImputer in Stage 2 will fill them with column medians, which
-           is the statistically correct approach for right-skewed distributions.
-        """
         logging.info("Starting raw data cleaning.")
 
         # Decision 1: drop the ID column
@@ -82,17 +60,6 @@ class DataIngestion:
         return df
 
     def initiate_data_ingestion(self):
-        """
-        Reads the raw CSV, cleans it, performs a stratified 80/20 split,
-        and persists all three versions to artifacts/.
-
-        WHY STRATIFIED SPLIT?
-        The target class ratio is approximately 60% High / 40% Not High.
-        A plain random split could, by chance, produce a test set with a
-        very different ratio, making our evaluation metrics misleading.
-        stratify=df["high_traffic"] guarantees the ratio is preserved in
-        both train and test sets.
-        """
         logging.info("Entered the data ingestion method.")
         try:
             df = pd.read_csv(os.path.join("data", "recipe_site_traffic_2212.csv"))
@@ -137,9 +104,6 @@ class DataIngestion:
 
 
 if __name__ == "__main__":
-    # Running this file directly kicks off the full 3-stage training pipeline.
-    # Each stage imports and calls the next, so a single command triggers
-    # Stage 1 → Stage 2 → Stage 3 in sequence.
     from src.components.data_transformation import DataTransformation
     from src.components.model_trainer import ModelTrainer
 

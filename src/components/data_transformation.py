@@ -24,38 +24,6 @@ class DataTransformation:
         self.data_transformation_config = DataTransformationConfig()
 
     def get_data_transformer_object(self):
-        """
-        Constructs the ColumnTransformer WITHOUT fitting it.
-        Separating construction from fitting means we can inspect or test
-        the transformer independently of the data it will eventually run on.
-
-        FEATURE DESIGN DECISIONS:
-
-        Numeric pipeline (calories, carbohydrate, sugar, protein, servings):
-          - Step 1: Median imputation. We use the MEDIAN (not mean) because
-            all four nutrition columns are right-skewed — a small number of
-            very high-calorie recipes pull the mean upward, making it a poor
-            representative value for filling missing rows.
-          - Step 2: StandardScaler (zero mean, unit variance). Without scaling,
-            calories (range 0–3000+) would numerically dominate protein (range
-            0–50) in any distance-based or gradient-based model, purely because
-            of magnitude differences — not because calories are actually more
-            predictive.
-
-        Categorical pipeline (category):
-          - Step 1: Most-frequent imputation (defensive; no missing values
-            expected after cleaning, but good practice).
-          - Step 2: OneHotEncoder with handle_unknown='ignore'. This means if
-            a category the model never saw during training appears at inference
-            time, it produces an all-zero row rather than raising an error.
-            sparse_output=False makes it easier to concatenate with the numeric
-            features inside the ColumnTransformer.
-          - Step 3: StandardScaler with with_mean=False. Setting with_mean=False
-            is necessary when dealing with sparse-like binary output — though our
-            OHE is not sparse (sparse_output=False), keeping this setting is a
-            safe default and puts the binary columns on the same numeric scale
-            as the processed numeric features, which benefits linear models.
-        """
         try:
             numerical_columns = [
                 "calories", "carbohydrate", "sugar", "protein", "servings"
@@ -89,20 +57,6 @@ class DataTransformation:
             raise CustomException(e, sys)
 
     def initiate_data_transformation(self, train_path, test_path):
-        """
-        Loads train and test CSVs, fits the preprocessor on training data
-        ONLY (to prevent data leakage), transforms both splits, and saves
-        the fitted preprocessor to disk.
-
-        WHY fit_transform() ON TRAIN BUT transform() ON TEST?
-        If we called fit_transform() on the test set, the scaler would
-        learn the test set's mean and standard deviation. That means the
-        scaling parameters used for test evaluation would be informed by
-        the test data — a subtle form of data leakage that produces
-        optimistically biased metrics. By fitting only on train and then
-        calling transform() on test, we guarantee the test set is treated
-        as completely unseen data at all times.
-        """
         try:
             train_df = pd.read_csv(train_path)
             test_df = pd.read_csv(test_path)
@@ -135,8 +89,7 @@ class DataTransformation:
                 input_feature_test_df
             )
 
-            # Concatenate features and target back into single arrays so the
-            # model trainer receives everything in one clean package.
+            # Concatenate features and target back into single arrays so the model trainer receives everything in one clean package.
             train_arr = np.c_[
                 input_feature_train_array, np.array(target_feature_train_df)
             ]
@@ -144,9 +97,6 @@ class DataTransformation:
                 input_feature_test_array, np.array(target_feature_test_df)
             ]
 
-            # Persist the FITTED preprocessor. The inference pipeline loads
-            # this at prediction time to apply the exact same imputation
-            # medians, scaler parameters, and OHE vocabulary as training.
             save_object(
                 file_path=self.data_transformation_config.preprocessor_obj_file_path,
                 obj=preprocessing_obj,

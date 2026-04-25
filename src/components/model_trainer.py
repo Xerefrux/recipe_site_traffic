@@ -25,8 +25,7 @@ from src.utils import save_object, evaluate_models
 @dataclass
 class ModelTrainerConfig:
     trained_model_file_path: str = os.path.join("artifacts", "model.pkl")
-    # The business requirement: correctly identify High Traffic recipes
-    # at least 80% of the time (i.e. precision >= 0.80).
+    # The business requirement: correctly identify High Traffic recipes at least 80% of the time (i.e. precision >= 0.80).
     precision_threshold: float = 0.80
 
 
@@ -35,30 +34,6 @@ class ModelTrainer:
         self.model_trainer_config = ModelTrainerConfig()
 
     def initiate_model_trainer(self, train_array, test_array):
-        """
-        Unpacks feature/target arrays, runs the automated evaluation sweep
-        across all classifier candidates, selects the best by test-set
-        precision, prints a detailed report, and saves the winner to disk.
-
-        MODEL CHOICE RATIONALE:
-        - Logistic Regression: the natural baseline for binary classification.
-          Interpretable, fast, and a good indicator of how much linear
-          separability exists in the features.
-        - Random Forest: an ensemble that handles non-linear relationships and
-          feature interactions well; tends to be robust without heavy tuning.
-        - Gradient Boosting & XGBoost: sequential boosting methods that often
-          outperform Random Forest on tabular data by correcting previous errors.
-        - KNeighbors: a non-parametric contrast; useful to see if local
-          similarity in nutrition values is predictive of traffic.
-        - AdaBoost: another boosting variant for comparison.
-
-        WHY PRECISION AS THE WINNER METRIC?
-        A false positive (we predict High, recipe is actually Not High) means
-        the homepage shows a low-traffic recipe — a bad user experience and a
-        lost subscription opportunity. The product manager explicitly wants to
-        minimise this. Precision = TP / (TP + FP) quantifies exactly this risk,
-        so we optimise and rank models by it.
-        """
         try:
             logging.info("Split training and test input data.")
             X_train, y_train = train_array[:, :-1], train_array[:, -1]
@@ -77,8 +52,7 @@ class ModelTrainer:
                 "AdaBoost": AdaBoostClassifier(random_state=42),
             }
 
-            # Hyperparameter grids: focused (not exhaustive) to keep training
-            # time practical while still exploring the most impactful knobs.
+            # Hyperparameter grids:
             param = {
                 "Logistic Regression": {
                     "C": [0.01, 0.1, 1, 10],
@@ -144,7 +118,6 @@ class ModelTrainer:
             )
 
             # Print a full comparison table and detailed report to the console
-            # so the developer can see the full picture during training.
             y_pred = best_model.predict(X_test)
             prec = precision_score(y_test, y_pred, pos_label=1, zero_division=0)
             rec  = recall_score(y_test, y_pred, pos_label=1, zero_division=0)
@@ -170,8 +143,7 @@ class ModelTrainer:
                 )
             )
 
-            # Save the winning model so the inference pipeline can load it
-            # at prediction time without retraining.
+            # Save the winning model so the inference pipeline can load it at prediction time without retraining.
             save_object(
                 file_path=self.model_trainer_config.trained_model_file_path,
                 obj=best_model,
