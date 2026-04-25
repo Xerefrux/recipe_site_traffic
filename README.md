@@ -163,6 +163,8 @@ traffic prediction with a confidence score.
 ---
 
 ## Project Structure
+
+```
 recipe-traffic-predictor/
 ├── data/
 │   └── recipe_site_traffic_2212.csv   # Raw dataset (947 rows × 8 columns)
@@ -192,6 +194,7 @@ recipe-traffic-predictor/
 ├── setup.py                           # Registers src/ as an installable package
 ├── Procfile                           # Render/Heroku start command (Gunicorn)
 └── requirements.txt                   # Python dependencies
+```
 
 ---
 
